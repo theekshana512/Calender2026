@@ -1,0 +1,285 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+
+const AnimatedCalendar = () => {
+  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
+  const [currentYear, setCurrentYear] = useState(2026);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [direction, setDirection] = useState('');
+  const [touchStart, setTouchStart] = useState(0);
+  const [touchEnd, setTouchEnd] = useState(0);
+  const [dragOffset, setDragOffset] = useState(0);
+  
+  const calendarRef = useRef(null);
+
+  const months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  const gradients = [
+    'from-purple-400 via-pink-400 to-red-400',
+    'from-blue-400 via-cyan-400 to-teal-400',
+    'from-green-400 via-emerald-400 to-lime-400',
+    'from-yellow-400 via-orange-400 to-red-400',
+    'from-pink-400 via-rose-400 to-fuchsia-400',
+    'from-indigo-400 via-purple-400 to-pink-400',
+    'from-cyan-400 via-blue-400 to-indigo-400',
+    'from-amber-400 via-orange-400 to-red-400',
+    'from-teal-400 via-green-400 to-emerald-400',
+    'from-violet-400 via-purple-400 to-indigo-400',
+    'from-rose-400 via-pink-400 to-purple-400',
+    'from-blue-500 via-indigo-500 to-purple-500'
+  ];
+
+  const getDaysInMonth = (month, year) => {
+    return new Date(year, month + 1, 0).getDate();
+  };
+
+  const getFirstDayOfMonth = (month, year) => {
+    return new Date(year, month, 1).getDay();
+  };
+
+  const generateCalendarDays = () => {
+    const daysInMonth = getDaysInMonth(currentMonth, currentYear);
+    const firstDay = getFirstDayOfMonth(currentMonth, currentYear);
+    const days = [];
+
+    for (let i = 0; i < firstDay; i++) {
+      days.push(null);
+    }
+
+    for (let i = 1; i <= daysInMonth; i++) {
+      days.push(i);
+    }
+
+    return days;
+  };
+
+  const handlePrevMonth = () => {
+    if (isAnimating) return;
+    setIsAnimating(true);
+    setDirection('prev');
+    
+    setTimeout(() => {
+      if (currentMonth === 0) {
+        setCurrentMonth(11);
+        setCurrentYear(currentYear - 1);
+      } else {
+        setCurrentMonth(currentMonth - 1);
+      }
+      setIsAnimating(false);
+      setDragOffset(0);
+    }, 300);
+  };
+
+  const handleNextMonth = () => {
+    if (isAnimating) return;
+    setIsAnimating(true);
+    setDirection('next');
+    
+    setTimeout(() => {
+      if (currentMonth === 11) {
+        setCurrentMonth(0);
+        setCurrentYear(currentYear + 1);
+      } else {
+        setCurrentMonth(currentMonth + 1);
+      }
+      setIsAnimating(false);
+      setDragOffset(0);
+    }, 300);
+  };
+
+  const handleTouchStart = (e) => {
+    setTouchStart(e.touches[0].clientX);
+    setTouchEnd(e.touches[0].clientX);
+  };
+
+  const handleTouchMove = (e) => {
+    if (isAnimating) return;
+    setTouchEnd(e.touches[0].clientX);
+    const diff = e.touches[0].clientX - touchStart;
+    setDragOffset(Math.max(-100, Math.min(100, diff * 0.5)));
+  };
+
+  const handleTouchEnd = () => {
+    if (isAnimating) return;
+    
+    const swipeDistance = touchStart - touchEnd;
+    const minSwipeDistance = 50;
+
+    if (swipeDistance > minSwipeDistance) {
+      handleNextMonth();
+    } else if (swipeDistance < -minSwipeDistance) {
+      handlePrevMonth();
+    } else {
+      setDragOffset(0);
+    }
+  };
+
+  const handleMouseDown = (e) => {
+    setTouchStart(e.clientX);
+    setTouchEnd(e.clientX);
+    calendarRef.current.style.cursor = 'grabbing';
+  };
+
+  const handleMouseMove = (e) => {
+    if (touchStart === 0 || isAnimating) return;
+    setTouchEnd(e.clientX);
+    const diff = e.clientX - touchStart;
+    setDragOffset(Math.max(-100, Math.min(100, diff * 0.5)));
+  };
+
+  const handleMouseUp = () => {
+    if (touchStart === 0) return;
+    
+    const swipeDistance = touchStart - touchEnd;
+    const minSwipeDistance = 50;
+
+    if (swipeDistance > minSwipeDistance) {
+      handleNextMonth();
+    } else if (swipeDistance < -minSwipeDistance) {
+      handlePrevMonth();
+    } else {
+      setDragOffset(0);
+    }
+    
+    setTouchStart(0);
+    calendarRef.current.style.cursor = 'grab';
+  };
+
+  const handleMouseLeave = () => {
+    if (touchStart !== 0) {
+      setDragOffset(0);
+      setTouchStart(0);
+      calendarRef.current.style.cursor = 'grab';
+    }
+  };
+
+  const days = generateCalendarDays();
+  const today = new Date();
+  const isCurrentMonth = currentMonth === today.getMonth() && currentYear === today.getFullYear();
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-8">
+      <div className="w-full max-w-2xl">
+        <div 
+          ref={calendarRef}
+          className={`bg-gradient-to-br ${gradients[currentMonth]} p-1 rounded-3xl shadow-2xl transform transition-all duration-500 hover:scale-105 select-none`}
+          style={{ 
+            cursor: 'grab',
+            transform: `translateX(${dragOffset}px) scale(${1.05 - Math.abs(dragOffset) * 0.0005})`
+          }}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseLeave}
+        >
+          <div className="bg-white rounded-3xl overflow-hidden">
+            {/* Header */}
+            <div className={`bg-gradient-to-r ${gradients[currentMonth]} p-8 text-white`}>
+              <div className="flex items-center justify-between mb-4">
+                <button
+                  onClick={handlePrevMonth}
+                  disabled={isAnimating}
+                  className="p-2 hover:bg-white/20 rounded-full transition-all duration-200 transform hover:scale-110 disabled:opacity-50"
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
+                  <ChevronLeft size={28} />
+                </button>
+                
+                <div className="text-center pointer-events-none">
+                  <h2 className="text-4xl font-bold mb-1 drop-shadow-lg">
+                    {months[currentMonth]}
+                  </h2>
+                  <p className="text-xl opacity-90">{currentYear}</p>
+                </div>
+                
+                <button
+                  onClick={handleNextMonth}
+                  disabled={isAnimating}
+                  className="p-2 hover:bg-white/20 rounded-full transition-all duration-200 transform hover:scale-110 disabled:opacity-50"
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
+                  <ChevronRight size={28} />
+                </button>
+              </div>
+            </div>
+
+            {/* Calendar Grid */}
+            <div className={`p-8 transition-all duration-300 ${
+              isAnimating 
+                ? direction === 'next' 
+                  ? 'opacity-0 translate-x-8' 
+                  : 'opacity-0 -translate-x-8'
+                : 'opacity-100 translate-x-0'
+            }`}>
+              {/* Weekday Headers */}
+              <div className="grid grid-cols-7 gap-2 mb-4">
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+                  <div
+                    key={day}
+                    className="text-center font-semibold text-gray-600 text-sm py-2"
+                  >
+                    {day}
+                  </div>
+                ))}
+              </div>
+
+              {/* Calendar Days */}
+              <div className="grid grid-cols-7 gap-2">
+                {days.map((day, index) => {
+                  const isToday = isCurrentMonth && day === today.getDate();
+                  return (
+                    <div
+                      key={index}
+                      className={`aspect-square flex items-center justify-center rounded-xl text-lg font-medium transition-all duration-200 ${
+                        day
+                          ? isToday
+                            ? `bg-gradient-to-br ${gradients[currentMonth]} text-white shadow-lg transform scale-110 font-bold`
+                            : 'bg-gray-50 hover:bg-gradient-to-br hover:from-gray-100 hover:to-gray-200 hover:shadow-md hover:scale-105 cursor-pointer'
+                          : ''
+                      }`}
+                      style={{
+                        animationDelay: `${index * 20}ms`
+                      }}
+                    >
+                      {day && (
+                        <span className={isToday ? 'drop-shadow' : 'text-gray-700'}>
+                          {day}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Footer with decorative gradient */}
+            <div className={`h-3 bg-gradient-to-r ${gradients[currentMonth]}`}></div>
+          </div>
+        </div>
+
+        {/* Instructions & Progress Dots */}
+        <div className="text-center mt-6">
+          <p className="text-white/60 text-sm mb-3">👆 Swipe or drag to change months</p>
+          <div className="flex justify-center gap-2">
+            {gradients.map((_, index) => (
+              <div
+                key={index}
+                className={`h-2 rounded-full transition-all duration-300 ${
+                  index === currentMonth ? 'w-8 bg-white' : 'w-2 bg-white/30'
+                }`}
+              ></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default AnimatedCalendar;
